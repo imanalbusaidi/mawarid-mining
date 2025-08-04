@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Injury Free Days Tracker</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; padding: 40px; }
+    h2 { text-align: center; color: #1a237e; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th { background: #3949ab; color: #fff; padding: 10px; }
+    td { text-align: center; padding: 10px; border-bottom: 1px solid #ccc; }
+    tr:nth-child(even) { background: #f9fbfd; }
+    button { background: #3949ab; color: white; padding: 5px 10px; border: none; margin: 2px; }
+    button.reset { background: #e53935; }
+    button.edit { background: #2e7d32; }
+  </style>
+</head>
+<body>
+<div style="text-align: center; margin-bottom: 20px;">
+    <img src="logo.png" alt="Company Logo" style="max-width: 150px; height: auto;">
+  </div>
+
+  <h2>Injury-Free Days Tracker</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Date (MTD)</th>
+        <th>YTD</th>
+        <th>Previous Best</th>
+      </tr>
+    </thead>
+    <tbody id="injuryTable"></tbody>
+  </table>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBWmgC5nf4Qu73WW30L2xVvDsKArpM3kdA",
+      authDomain: "mawarid-mining-8ee33.firebaseapp.com",
+      projectId: "mawarid-mining-8ee33",
+      storageBucket: "mawarid-mining-8ee33.appspot.com",
+      messagingSenderId: "167667577901",
+      appId: "1:167667577901:web:fc3e74e4e25c61f90a34a4",
+      measurementId: "G-YGQRNE2B4D"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let categories = [
+      { name: "First Aid Injury Free Days", ytd: 212, best: 559, lastUpdated: "2025-07-31" },
+      { name: "Medical Injury Free Days", ytd: 180, best: 227, lastUpdated: "2025-07-31" },
+      { name: "Lost Time Injury Free Days", ytd: 212, best: 942, lastUpdated: "2025-07-31" },
+      { name: "Fatal Injury Free Days", ytd: 212, best: 942, lastUpdated: "2025-07-31" }
+    ];
+
+    function getYesterdayOmanDate() {
+      const now = new Date();
+      now.setUTCHours(now.getUTCHours() + 4);
+      now.setDate(now.getDate() - 1);
+      return now.toISOString().split('T')[0];
+    }
+
+    function daysBetween(date1, date2) {
+      const d1 = new Date(date1);
+      const d2 = new Date(date2);
+      return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+    }
+
+    async function updateDailyData() {
+      const yesterday = getYesterdayOmanDate();
+      let updated = false;
+
+      categories.forEach(cat => {
+        if (cat.lastUpdated !== yesterday) {
+          const diff = daysBetween(cat.lastUpdated, yesterday);
+          if (diff > 0) {
+            cat.ytd += diff;
+            if (cat.ytd > cat.best) cat.best = cat.ytd;
+            cat.lastUpdated = yesterday;
+            updated = true;
+          }
+        }
+      });
+
+      if (updated) {
+        await saveData();
+      }
+    }
+
+    async function updateTable() {
+      const tbody = document.getElementById("injuryTable");
+      tbody.innerHTML = "";
+
+      categories.forEach((cat, index) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${cat.name}</td>
+          <td>${cat.lastUpdated}</td>
+          <td>${cat.ytd}</td>
+          <td>${cat.best}</td>
+         
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+ 
+
+    async function saveData() {
+      await db.collection("injuryData").doc("shared").set({ categories });
+    }
+
+    async function loadData() {
+      const doc = await db.collection("injuryData").doc("shared").get();
+      if (doc.exists) {
+        categories = doc.data().categories;
+      }
+      await updateDailyData();
+      updateTable();
+    }
+
+    db.collection("injuryData").doc("shared").onSnapshot(snapshot => {
+      if (snapshot.exists) {
+        categories = snapshot.data().categories;
+        updateTable();
+      }
+    });
+
+    window.onload = loadData;
+  </script>
+</body>
+</html>
